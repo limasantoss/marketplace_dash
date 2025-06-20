@@ -53,14 +53,12 @@ else:
 
 st.markdown("---")
 
-# --- LÓGICA DE FILTRAGEM (SEM SELETOR DE REGIÃO) ---
-# Filtra diretamente para todos os estados do Norte e Nordeste
+
 estados_norte_nordeste = ["AC", "AP", "AM", "PA", "RO", "RR", "TO", "AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"]
 df_filtrado_regiao = df_filtrado_data[df_filtrado_data["customer_state"].isin(estados_norte_nordeste)].copy()
 
-# Filtro de Cidade (continua funcionando)
 if not df_filtrado_regiao.empty:
-    st.subheader("Filtre por Cidade (Opcional)")
+    st.subheader("Filtre por Cidade ")
     cidades_disponiveis = sorted(df_filtrado_regiao['customer_city'].unique())
     cidades_selecionadas = st.multiselect(
         "Selecione uma ou mais cidades para detalhar a análise:",
