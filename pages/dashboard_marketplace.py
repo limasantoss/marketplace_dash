@@ -1,4 +1,3 @@
-# pages/2_📊_Dashboard.py
 
 import streamlit as st
 import pandas as pd
