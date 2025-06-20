@@ -5,10 +5,32 @@ import pandas as pd
 import plotly.express as px
 from datetime import timedelta, date
 
+# --- CONFIGURAÇÃO INICIAL DA PÁGINA ---
+st.set_page_config(
+    layout="wide", 
+    page_title="Dashboard | Marketplace", 
+    page_icon="icone.jpeg"
+)
+
+# --- ESTILOS CSS ---
+st.markdown("""
+    <style>
+        /* Regra para colorir todos os títulos e subtítulos */
+        h1, h2, h3 {
+            color: #FF6F17;
+        }
+        /* Regra para colorir os rótulos dos indicadores (KPIs) */
+        div[data-testid="stMetricLabel"] {
+            color: #FF6F17;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+
 # --- FUNÇÕES DE LÓGICA ---
 @st.cache_data
 def carregar_dados():
-    df = pd.read_csv("../data/processed/dataset_olist_final_limpo.csv", parse_dates=["order_purchase_timestamp", "order_delivered_customer_date"])
+    df = pd.read_csv("dataset_olist_final_limpo.csv", parse_dates=["order_purchase_timestamp", "order_delivered_customer_date"])
     try:
         df['order_purchase_timestamp'] = df['order_purchase_timestamp'].dt.tz_localize('UTC').dt.tz_convert('America/Sao_Paulo')
         df['order_delivered_customer_date'] = df['order_delivered_customer_date'].dt.tz_localize('UTC').dt.tz_convert('America/Sao_Paulo')
@@ -18,18 +40,23 @@ def carregar_dados():
     df["ano_mes"] = df["order_purchase_timestamp"].dt.to_period("M").astype(str)
     df.dropna(subset=['order_delivered_customer_date', 'order_purchase_timestamp'], inplace=True)
     df["tempo_entrega"] = (df["order_delivered_customer_date"] - df["order_purchase_timestamp"]).dt.days
+    df["dia_da_semana"] = df["order_purchase_timestamp"].dt.day_name()
     return df
 
 # --- LÓGICA DA PÁGINA DO DASHBOARD ---
 
-st.set_page_config(layout="wide", page_title="Dashboard Zents", page_icon="📊")
-st.title("📊 Dashboard de Análise")
+st.title("📊 Dashboard de Análise do Marketplace")
 
 try:
     df = carregar_dados()
 except Exception as e:
     st.error(f"Erro ao carregar os dados: {e}")
     st.stop()
+
+# --- SIDEBAR ---
+st.sidebar.image("icone.jpeg", width=150)
+st.sidebar.title("Filtros Globais")
+st.sidebar.markdown("---") 
 
 def atualizar_periodo():
     st.session_state.date_range = st.session_state.filtro_data_slider
@@ -40,7 +67,6 @@ data_max_geral = df["order_purchase_timestamp"].max().date()
 if 'date_range' not in st.session_state:
     st.session_state.date_range = (data_min_geral, data_max_geral)
 
-st.sidebar.header("Filtro de Período Global")
 st.sidebar.slider(
     "Selecione o intervalo:", 
     min_value=data_min_geral, 
@@ -52,10 +78,12 @@ st.sidebar.slider(
 st.sidebar.markdown("---") 
 
 selecao_dashboard = st.sidebar.radio(
-    "Selecione uma seção do Dashboard:",
+    "Navegue pelo Dashboard:",
     ["Visão Geral", "Análise de Lojas", "Análise de Logística"]
 )
+st.sidebar.markdown("---")
 
+# --- CONTEÚDO PRINCIPAL ---
 start_date, end_date = st.session_state.date_range
 df_filtrado = df[
     (df["order_purchase_timestamp"].dt.date >= start_date) &
@@ -138,6 +166,8 @@ elif selecao_dashboard == "Análise de Lojas":
 
 elif selecao_dashboard == "Análise de Logística":
     st.subheader("🚚 Análise de Logística no Período")
+    
+    # --- GRÁFICOS EXISTENTES ---
     col1, col2 = st.columns(2)
     with col1:
         tempo_estado = df_filtrado.groupby("customer_state")["tempo_entrega"].mean().sort_values().reset_index()
@@ -145,8 +175,26 @@ elif selecao_dashboard == "Análise de Logística":
         fig.update_layout(yaxis={'categoryorder':'total ascending'}, xaxis_title="Tempo Médio (dias)", yaxis_title="Estado")
         st.plotly_chart(fig, use_container_width=True)
     with col2:
-        nota_estado = df_filtrado.groupby("customer_state")["review_score"].mean().sort_values().reset_index()
-        fig2 = px.bar(nota_estado, x="review_score", y="customer_state", title="Nota Média por Estado", orientation='h')
-        fig2.update_layout(yaxis={'categoryorder':'total ascending'}, xaxis_title="Nota Média", yaxis_title="Estado")
+        # --- NOVO GRÁFICO 1: Custo do Frete por Estado ---
+        frete_estado = df_filtrado.groupby("customer_state")["freight_value"].mean().sort_values().reset_index()
+        fig2 = px.bar(frete_estado, x="freight_value", y="customer_state", title="Custo Médio do Frete por Estado", orientation='h')
+        fig2.update_layout(yaxis={'categoryorder':'total ascending'}, xaxis_title="Frete Médio (R$)", yaxis_title="Estado")
         st.plotly_chart(fig2, use_container_width=True)
 
+    st.markdown("---")
+    st.subheader("🏆 Performance de Entrega dos Vendedores")
+    
+    # --- NOVOS GRÁFICOS 2 e 3: Performance dos Vendedores ---
+    col3, col4 = st.columns(2)
+    with col3:
+        vendedores_rapidos = df_filtrado.groupby('seller_id')['tempo_entrega'].mean().nsmallest(5).sort_values(ascending=False).reset_index()
+        vendedores_rapidos.columns = ['Vendedor', 'Tempo Médio']
+        fig3 = px.bar(vendedores_rapidos, x='Tempo Médio', y='Vendedor', orientation='h', title='Top 5 Vendedores Mais Rápidos')
+        fig3.update_layout(xaxis_title="Tempo Médio (dias)", yaxis_title="ID do Vendedor")
+        st.plotly_chart(fig3, use_container_width=True)
+    with col4:
+        vendedores_lentos = df_filtrado.groupby('seller_id')['tempo_entrega'].mean().nlargest(5).sort_values(ascending=True).reset_index()
+        vendedores_lentos.columns = ['Vendedor', 'Tempo Médio']
+        fig4 = px.bar(vendedores_lentos, x='Tempo Médio', y='Vendedor', orientation='h', title='Top 5 Vendedores Mais Lentos')
+        fig4.update_layout(xaxis_title="Tempo Médio (dias)", yaxis_title="ID do Vendedor")
+        st.plotly_chart(fig4, use_container_width=True)
