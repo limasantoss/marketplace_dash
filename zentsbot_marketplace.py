@@ -7,8 +7,8 @@ import re
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="ZentsBot | Marketplace", 
-    page_icon="icone.jpeg",
+    #page_title="ZentsBot | Marketplace", 
+    #page_icon="icone.jpeg",
     layout="centered"
 )
 
@@ -19,8 +19,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.image("icone.jpeg", width=150)
-st.markdown("<h1 style='text-align: center; color: #FF6F17;'>🤖 ZentsBot | Análise de Marketplace</h1>", unsafe_allow_html=True)
+#st.image("icone.jpeg", width=150)
+st.markdown("<h1 style='text-align: center; color: #FF6F17;'>🤖 botmarket </h1>", unsafe_allow_html=True)
 
 # --- LÓGICA DE DETECÇÃO DE TELA E CARREGAMENTO DE DADOS ---
 screen_width = streamlit_js_eval(js_expressions='window.innerWidth', key='SCR_WIDTH') or 769

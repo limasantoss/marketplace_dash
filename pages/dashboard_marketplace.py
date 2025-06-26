@@ -8,7 +8,7 @@ from datetime import timedelta, date
 st.set_page_config(
     layout="wide", 
     page_title="Dashboard | Marketplace", 
-    page_icon="icone.jpeg"
+    #page_icon="icone.jpeg"
 )
 
 # --- ESTILOS CSS ---
