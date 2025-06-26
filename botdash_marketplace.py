@@ -5,22 +5,22 @@ from dateutil.relativedelta import relativedelta
 from streamlit_js_eval import streamlit_js_eval
 import re
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+
 st.set_page_config(
-    #page_title="ZentsBot | Marketplace", 
-    #page_icon="icone.jpeg",
+    page_title="Marketplace Bot", 
+    page_icon="icone.jpeg",  # troque se quiser outro favicon
     layout="centered"
 )
 
-# --- ESTILOS E LOGO ---
+
 st.markdown("""
     <style>
-        
+        h1, h2, h3 { color: #FF6F17; }
+        div[data-testid="stMetricLabel"] { color: #FF6F17; }
     </style>
 """, unsafe_allow_html=True)
 
-#st.image("icone.jpeg", width=150)
-st.markdown("<h1 style='text-align: center; color: #FF6F17;'>🤖 botmarket </h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #FF6F17;'>🤖 Marketplace Bot</h1>", unsafe_allow_html=True)
 
 # --- LÓGICA DE DETECÇÃO DE TELA E CARREGAMENTO DE DADOS ---
 screen_width = streamlit_js_eval(js_expressions='window.innerWidth', key='SCR_WIDTH') or 769
@@ -28,13 +28,11 @@ is_mobile = screen_width < 768
 
 @st.cache_data
 def carregar_dados():
-    # ATENÇÃO: Verifique se o caminho para o seu novo dataset de marketplace está correto.
     df = pd.read_csv("dataset_olist_final_limpo.csv", parse_dates=["order_purchase_timestamp", "order_delivered_customer_date", "order_estimated_delivery_date"])
     df["tempo_entrega"] = (df["order_delivered_customer_date"] - df["order_purchase_timestamp"]).dt.days
     df["dia_da_semana"] = df["order_purchase_timestamp"].dt.day_name()
     return df
 
-# --- FUNÇÕES DE ANÁLISE (DO SEU NOVO BOT) ---
 def get_periodo_anterior(data_inicio_atual, data_fim_atual):
     duracao = (data_fim_atual - data_inicio_atual)
     fim_anterior = data_inicio_atual - timedelta(days=1)
@@ -46,7 +44,6 @@ def gerar_resposta_analitica(pergunta, df_filtrado, df_total):
     if df_filtrado.empty:
         return "Não encontrei dados para o período selecionado."
 
-    # --- LÓGICA DE ANÁLISE MACRO (PRESERVADA) ---
     if "concentração de vendas" in pergunta:
         faturamento_total = df_filtrado['payment_value'].sum()
         if faturamento_total > 0:
@@ -54,7 +51,8 @@ def gerar_resposta_analitica(pergunta, df_filtrado, df_total):
             concentracao = (faturamento_top_10 / faturamento_total)
             insight = "Isso indica uma alta dependência dos seus principais vendedores." if concentracao > 0.5 else "Isso mostra um ecossistema bem diversificado e saudável."
             return f"📊 As 10 maiores lojas representam **{concentracao:.1%}** do faturamento total. {insight}"
-        else: return "Não há faturamento no período para calcular a concentração."
+        else:
+            return "Não há faturamento no período para calcular a concentração."
     
     elif "desempenho dos vendedores" in pergunta:
         total_vendedores = df_filtrado['seller_id'].nunique()
@@ -63,7 +61,8 @@ def gerar_resposta_analitica(pergunta, df_filtrado, df_total):
             alta_performance = seller_stats[(seller_stats['pedidos'] > 10) & (seller_stats['nota_media'] >= 4.5)].shape[0]
             em_risco = seller_stats[(seller_stats['pedidos'] < 5) & (seller_stats['nota_media'] < 3.5)].shape[0]
             return f"📈 Analisando **{total_vendedores}** vendedores:\n- **Alta Performance:** {alta_performance}\n- **Em Risco:** {em_risco}"
-        else: return "Não há dados de lojas para analisar."
+        else:
+            return "Não há dados de lojas para analisar."
 
     elif "atrasos afetam avaliações" in pergunta:
         df_com_atraso = df_filtrado[df_filtrado['tempo_entrega'] > 25]
@@ -72,27 +71,26 @@ def gerar_resposta_analitica(pergunta, df_filtrado, df_total):
             nota_com_atraso = df_com_atraso['review_score'].mean()
             nota_sem_atraso = df_sem_atraso['review_score'].mean()
             return f"📉 Sim, a nota média para entregas com atraso é **{nota_com_atraso:.2f}**, enquanto para entregas no prazo é **{nota_sem_atraso:.2f}**."
-        else: return "✅ Não há dados suficientes para comparar."
+        else:
+            return "✅ Não há dados suficientes para comparar."
     
     elif "loja com mais pedidos" in pergunta:
         if not df_filtrado.empty:
             loja_top_id = df_filtrado["seller_id"].value_counts().idxmax()
             return f"🏆 A loja com mais pedidos é a **{loja_top_id}**."
-        else: return "Não houve pedidos no período para analisar."
+        else:
+            return "Não houve pedidos no período para analisar."
     
-    # ... Adicionar outras lógicas do gerar_resposta_analitica aqui se necessário ...
-
-    else: # Fallback para uma mensagem de ajuda
+    else:
         return """
         🤖 Desculpe, não entendi. Tente uma das perguntas abaixo:
 
-        * `Qual a concentração de vendas?`
+        * `Qual a concentração de vendas?` 
         * `Como está o desempenho dos vendedores?`
         * `Atrasos afetam avaliações?`
         * `Qual a loja com mais pedidos?`
         """
-
-# --- LÓGICA PRINCIPAL DA PÁGINA ---
+# caso o bot de conflito nas respostas coloque as aspas entre a palavra , blz:)
 try:
     df_total = carregar_dados()
 except Exception as e:
@@ -120,7 +118,6 @@ df_contexto = df_total[(df_total["order_purchase_timestamp"].dt.date >= start_da
 st.info(f"Contexto de análise: **{start_date.strftime('%d/%m/%Y')}** a **{end_date.strftime('%d/%m/%Y')}**", icon="📅")
 st.markdown("---")
 
-# --- LÓGICA DOS BOTÕES E INTERFACE DO BOT ---
 PREGUNTAS_RAPIDAS = [
     "Qual a concentração de vendas?",
     "Como está o desempenho dos vendedores?",
@@ -130,7 +127,8 @@ PREGUNTAS_RAPIDAS = [
 
 def set_pergunta(pergunta):
     st.session_state.pergunta_atual = pergunta
-if 'pergunta_atual' not in st.session_state: st.session_state.pergunta_atual = ""
+if 'pergunta_atual' not in st.session_state:
+    st.session_state.pergunta_atual = ""
 
 if is_mobile:
     st.markdown("<h3 style='color: #FF6F17;'>Análises Rápidas</h3>", unsafe_allow_html=True)
